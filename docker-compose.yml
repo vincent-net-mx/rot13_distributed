@@ -1,0 +1,46 @@
+version: '3.8'
+
+networks:
+  distributed-net:
+    driver: bridge
+
+services:
+  coordinator:
+    build:
+      context: ./coordinator
+    container_name: coordinator
+    ports:
+      - "8080:5000"
+    networks:
+      - distributed-net
+    depends_on:
+      - worker-1
+      - worker-2
+      - worker-3
+
+  worker-1:
+    build:
+      context: ./worker
+    container_name: worker-1
+    environment:
+      - WORKER_ID=1
+    networks:
+      - distributed-net
+
+  worker-2:
+    build:
+      context: ./worker
+    container_name: worker-2
+    environment:
+      - WORKER_ID=2
+    networks:
+      - distributed-net
+
+  worker-3:
+    build:
+      context: ./worker
+    container_name: worker-3
+    environment:
+      - WORKER_ID=3
+    networks:
+      - distributed-net

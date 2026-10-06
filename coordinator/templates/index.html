@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Sistema Distribuido ROT13</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    p.subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+    .panel {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+    textarea {
+      width: 100%;
+      height: 90px;
+      box-sizing: border-box;
+      background: #090d16;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.75rem;
+      border-radius: 6px;
+      resize: vertical;
+      font-family: monospace;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.75rem 1.5rem;
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .nodes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .node-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .node-card h3 {
+      margin-top: 0;
+      font-size: 1rem;
+      color: var(--accent);
+      display: flex;
+      justify-content: space-between;
+    }
+    .chunk-box {
+      background: #090d16;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      word-break: break-all;
+      min-height: 24px;
+      margin-bottom: 0.5rem;
+    }
+    label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .status-badge {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #22c55e;
+      color: #052e16;
+    }
+    .status-error {
+      background: #ef4444;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>Sistemas Operativos Distribuidos</h1>
+    <p class="subtitle">Demostración: Pipeline Map/Reduce con ROT13 sobre 3 contenedores</p>
+
+    <div class="panel">
+      <label for="inputText">Cadena de Entrada (Original):</label>
+      <textarea id="inputText" placeholder="Escribe aquí el texto a distribuir..."></textarea>
+      <button id="sendBtn" onclick="processText()">Distribuir y Procesar en Clúster</button>
+    </div>
+
+    <div class="nodes-grid">
+      <div class="node-card" id="card-1">
+        <h3>Nodo 1 (worker-1) <span class="status-badge" id="status-1">Inactivo</span></h3>
+        <label>Fragmento asignado (1/3):</label>
+        <div class="chunk-box" id="in-1">-</div>
+        <label>Resultado ROT13:</label>
+        <div class="chunk-box" id="out-1">-</div>
+      </div>
+
+      <div class="node-card" id="card-2">
+        <h3>Nodo 2 (worker-2) <span class="status-badge" id="status-2">Inactivo</span></h3>
+        <label>Fragmento asignado (2/3):</label>
+        <div class="chunk-box" id="in-2">-</div>
+        <label>Resultado ROT13:</label>
+        <div class="chunk-box" id="out-2">-</div>
+      </div>
+
+      <div class="node-card" id="card-3">
+        <h3>Nodo 3 (worker-3) <span class="status-badge" id="status-3">Inactivo</span></h3>
+        <label>Fragmento asignado (3/3):</label>
+        <div class="chunk-box" id="in-3">-</div>
+        <label>Resultado ROT13:</label>
+        <div class="chunk-box" id="out-3">-</div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top: 1.5rem;">
+      <label>Resultado Ensamblado (Coordinador):</label>
+      <div class="chunk-box" id="finalResult" style="min-height: 40px; font-size: 1rem;">-</div>
+    </div>
+  </div>
+
+  <script>
+    async function processText() {
+      const text = document.getElementById('inputText').value;
+      const sendBtn = document.getElementById('sendBtn');
+      sendBtn.disabled = true;
+      sendBtn.innerText = "Procesando en clúster...";
+
+      try {
+        const response = await fetch('/api/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text })
+        });
+
+        const data = await response.json();
+
+        data.workers_data.forEach(worker => {
+          const id = worker.worker_id;
+          document.getElementById(`in-${id}`).innerText = worker.input || "(vacío)";
+          document.getElementById(`out-${id}`).innerText = worker.output || "(vacío)";
+          
+          const statusBadge = document.getElementById(`status-${id}`);
+          if (worker.status === 'success') {
+            statusBadge.innerText = "OK";
+            statusBadge.className = "status-badge";
+          } else {
+            statusBadge.innerText = "Error";
+            statusBadge.className = "status-badge status-error";
+          }
+        });
+
+        document.getElementById('finalResult').innerText = data.assembled_result || "(sin resultado)";
+      } catch (err) {
+        alert("Fallo de comunicación con el coordinador: " + err.message);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerText = "Distribuir y Procesar en Clúster";
+      }
+    }
+  </script>
+</body>
+</html>
